@@ -4,6 +4,11 @@ import Fields from './Fields';
 import Products from './Products';
 import Periods from './Periods';
 import Plantings from './Plantings';
+import { randomId } from '../../helpers';
+import * as randomColor from 'randomcolor';
+import TotalStatistics from './TotalStatistics';
+import Leader from './Leader';
+import * as _ from 'lodash';
 export class FarmerProblem extends Component {
     constructor(props) {
         super(props);
@@ -142,9 +147,13 @@ export class FarmerProblem extends Component {
                     percent: 100
                 }
             ],
-            selectedPeriod: null,
-            selectedField: null
+            selectedPeriod: 3,
+            selectedField: 1,
         };
+    }
+
+    componentDidMount() {
+        this.getTotalStatisticsData();
     }
 
     handlePeriodSelect = (e) => {
@@ -161,19 +170,215 @@ export class FarmerProblem extends Component {
         else this.setState({ selectedField: value });
     }
 
+    //VALIDATION HATALARI GONDERILMEMISTIR
+    handlePercentChange = (value, productId) => {
+        //YUZDE YUZDEN FAZLA EKIM OLMAMASI İÇİN VALİASYON
+        if (value < 0) {
+            return;
+        }
+        const currentPlantings = this.state.plantings.filter(x => x.periodId === Number(this.state.selectedPeriod) && x.fieldId === Number(this.state.selectedField));
+        const plantedProductIds = [...new Set(currentPlantings.map(x => x.productId))];
+        const plantedProducts = this.state.products.filter(x => plantedProductIds.includes(x.id)).map(product => {
+            const percent = this.state.plantings.find(x => x.periodId === Number(this.state.selectedPeriod) && x.fieldId === Number(this.state.selectedField) && x.productId === product.id).percent;
+            return { ...product, percent: percent };
+        });
+
+        let filledPercent = 0;
+        for (let i = 0; i < plantedProducts.length; i++) {
+            if (plantedProducts[i].id === productId)
+                continue;
+            filledPercent += plantedProducts[i].percent;
+
+        }
+
+        if (filledPercent + value > 100) {
+            return;
+        }
+
+        let changedPlanting = this.state.plantings.find(x => x.periodId === Number(this.state.selectedPeriod) && x.fieldId === Number(this.state.selectedField) && x.productId === productId);
+        if (!changedPlanting)
+            changedPlanting = {
+                id: randomId(),
+                periodId: Number(this.state.selectedPeriod),
+                fieldId: Number(this.state.selectedField),
+                productId: productId,
+            }
+        changedPlanting.percent = value;
+        const otherPlantings = this.state.plantings.filter(x => !(x.periodId === Number(this.state.selectedPeriod) && x.fieldId === Number(this.state.selectedField) && x.productId === productId));
+        this.setState({
+            plantings: [...otherPlantings, changedPlanting]
+        });
+    }
+
+    //ZAMANIM OLMADIĞINDAN KOD TEKRARI GİDERİLMEMİŞTİR
+    //VALIDATION HATALARI GONDERILMEMISTIR
+    handleFieldCreate = (values) => {
+        if (this.state.fields.filter(x => x.name === values.name).length < 1)
+            this.setState({
+                fields: [
+                    ...this.state.fields,
+                    {
+                        id: randomId(), ...values
+                    }
+                ]
+            })
+    }
+
+    //ZAMANIM OLMADIĞINDAN KOD TEKRARI GİDERİLMEMİŞTİR
+    //VALIDATION HATALARI GONDERILMEMISTIR
+    handlePeriodCreate = (values) => {
+        if (this.state.periods.filter(x => x.name === values.name).length < 1)
+            this.setState({
+                periods: [
+                    ...this.state.periods,
+                    {
+                        id: randomId(), ...values
+                    }
+                ]
+            })
+    }
+
+    //ZAMANIM OLMADIĞINDAN KOD TEKRARI GİDERİLMEMİŞTİR
+    //VALIDATION HATALARI GONDERILMEMISTIR
+    handleProductCreate = (values) => {
+        if (this.state.products.filter(x => x.name === values.name).length < 1)
+            this.setState({
+                products: [
+                    ...this.state.products,
+                    {
+                        id: randomId(), ...values,
+                        color: randomColor()
+                    }
+                ]
+            })
+    }
+
+    getTotalStatisticsData = () => {
+        const arbitraryStackKey = "stack1";
+
+        let datasets = []
+        let labels = [];
+
+        for (let i = 0; i < this.state.products.length; i++) {
+            labels.push(this.state.products[i].name);
+        }
+
+        for (let i = 0; i < this.state.periods.length; i++) {
+            let data = []
+
+            for (let i = 0; i < this.state.products.length; i++) {
+                data.push({
+                    productId: this.state.products[i].id,
+                    size: 0
+                })
+            }
+
+            const currentPlantings = this.state.plantings.filter(x => x.periodId === Number(this.state.periods[i].id)).map((plt => {
+                const field = this.state.fields.find(x => x.id === plt.fieldId);
+                const product = this.state.products.find(x => x.id === plt.productId);
+                const period = this.state.periods.find(x => x.id === plt.periodId);
+
+                return {
+                    ...plt, field, product, period
+                }
+
+            }));
+
+            for (let m = 0; m < currentPlantings.length; m++) {
+                for (let j = 0; j < this.state.products.length; j++) {
+                    if (currentPlantings[m].productId !== this.state.products[j].id)
+                        continue;
+                    for (let k = 0; k < data.length; k++) {
+                        if (data[k].productId === this.state.products[j].id) {
+                            data[k].size = data[k].size + (currentPlantings[m].percent * currentPlantings[m].field.size / 100);
+                        }
+                    }
+
+                }
+
+            }
+
+
+            let color;
+
+            if (!this.state.periods[i].color) {
+                const others = this.state.periods.filter(x => x.id !== this.state.periods[i].id);
+                const updated = { ...this.state.periods[i] }
+                color = randomColor;
+                updated.color = color();
+                this.setState({
+                    periods: [...others, updated]
+                })
+            } else {
+                color = this.state.periods[i].color;
+            }
+
+            datasets.push({
+                stack: arbitraryStackKey,
+                backgroundColor: color,
+                label: this.state.periods[i].name,
+                data: data.map(x => x.size)
+            });
+        }
+
+        return {
+            labels,
+            datasets: datasets
+        }
+    }
+
+
+
+    calculateLeader = () => {
+        let leader = {
+            name: "None",
+            size: 0
+        }
+
+        const populatedPlantings = this.state.plantings.map((plt => {
+            const field = this.state.fields.find(x => x.id === plt.fieldId);
+            const product = this.state.products.find(x => x.id === plt.productId);
+            const period = this.state.periods.find(x => x.id === plt.periodId);
+
+            return {
+                ...plt, field, product, period
+            }
+
+        }));
+
+        let grouped = _.groupBy(populatedPlantings, x => x.productId);
+        debugger;
+        for (const pr in grouped) {
+            let totalSize = 0;
+            for (let j = 0; j < grouped[pr].length; j++) {
+                totalSize += grouped[pr][j].percent * grouped[pr][j].field.size / 100;
+            }
+            if (totalSize > leader.size) {
+                leader = {
+                    name: grouped[pr][0].product.name,
+                    size: totalSize
+                }
+            }
+        }
+        return leader;
+
+    };
+
+
+
     render() {
         const { fields, periods, selectedPeriod, selectedField, products, plantings } = this.state;
         return (
             <div className="dp-container">
-                <Row>
+                <Row style={{ alignItems: 'stretch' }}>
                     <Col md={12} lg={4}>
-                        <Fields fields={this.state.fields} />
+                        <Fields fields={this.state.fields} onCreate={this.handleFieldCreate} />
                     </Col>
                     <Col md={12} lg={4}>
-                        <Products products={this.state.products} />
+                        <Products products={this.state.products} onCreate={this.handleProductCreate} />
                     </Col>
                     <Col md={12} lg={4}>
-                        <Periods periods={this.state.periods} />
+                        <Periods periods={this.state.periods} onCreate={this.handlePeriodCreate} />
                     </Col>
                 </Row>
                 <Row>
@@ -187,7 +392,16 @@ export class FarmerProblem extends Component {
                             selectedField={selectedField}
                             fields={fields}
                             periods={periods}
+                            onPercentChange={this.handlePercentChange}
                         />
+                    </Col>
+                </Row>
+                <Row>
+                    <Col md={12} lg={8}>
+                        <TotalStatistics data={this.getTotalStatisticsData()} />
+                    </Col>
+                    <Col md={12} lg={4}>
+                        <Leader leader={this.calculateLeader()} />
                     </Col>
                 </Row>
             </div>

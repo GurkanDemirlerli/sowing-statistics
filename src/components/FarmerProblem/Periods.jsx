@@ -1,6 +1,13 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Card, CardBody, CardTitle } from 'reactstrap';
-const Periods = ({ periods }) => {
+const Periods = ({ periods, onCreate }) => {
+
+    const [name, setName] = useState("");
+
+    const resetForm = () => {
+        setName("");
+    }
+
     return (
         <div className="dp-card-wrapper">
             <Card className="dp-card">
@@ -21,12 +28,12 @@ const Periods = ({ periods }) => {
                         })}
                     </div>
 
-                    <form className="dp-card__form">
+                    <form className="dp-card__form" onSubmit={(e) => { e.preventDefault(); resetForm(); return onCreate({ name }) }}>
                         <div class="form-row">
                             <div className="col">
-                                <input type="text" className="form-control" id="name" placeholder="Yıl" />
+                                <input type="text" value={name} onChange={(e) => setName(e.target.value)}  className="form-control form-control-sm" id="name" placeholder="Yıl" />
                             </div>
-                            <button type="submit" className="btn btn-primary">+</button>
+                            <button type="submit" className="btn btn-primary btn-sm">+</button>
                         </div>
                     </form>
                 </CardBody>

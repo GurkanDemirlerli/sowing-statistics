@@ -3,7 +3,7 @@ import { Card, CardBody, CardTitle, Row, Col } from 'reactstrap';
 import { Doughnut } from 'react-chartjs-2';
 
 
-const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPeriod, onSelectField, products, plantings }) => {
+const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPeriod, onSelectField, products, plantings, onPercentChange }) => {
     const getPlantingData = () => {
         const currentPlantings = plantings.filter(x => x.periodId === Number(selectedPeriod) && x.fieldId === Number(selectedField));
         const plantedProductIds = [...new Set(currentPlantings.map(x => x.productId))];
@@ -12,17 +12,12 @@ const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPer
             return { color: product.color, name: product.name, percent: percent };
         });
 
-        let filledPercent;
-        if (plantedProducts.length === 0)
-            filledPercent = 100;
-        else if (plantedProducts.length === 1)
-            filledPercent = plantedProducts[0].percent;
-        else
-            filledPercent = plantedProducts.reduce((total, num) => {
-                return total.percent + (num.percent);
-            });
+        let filledPercent = 0;
+        for (let i = 0; i < plantedProducts.length; i++) {
+            filledPercent += plantedProducts[i].percent;
 
-        if (filledPercent !== 100) {
+        }
+        if (filledPercent < 100) {
             plantedProducts.push({
                 color: '#CCC',
                 name: "Boş",
@@ -41,6 +36,14 @@ const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPer
         };
     }
 
+
+    const getPercent = (productId) => {
+        const planted = plantings.find(x => x.periodId === Number(selectedPeriod) && x.fieldId === Number(selectedField) && x.productId === productId);
+        if (planted)
+            return planted.percent + "";
+        return "";
+    }
+
     return (
         <div className="dp-card-wrapper">
             <Card className="dp-card">
@@ -51,7 +54,7 @@ const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPer
                     <Row>
                         <Col lg={2} >
                             <div class="form-group">
-                                <select class="form-control" id="field" onChange={onSelectPeriod} value={selectedPeriod}>
+                                <select class="form-control form-control-sm" id="field" onChange={onSelectPeriod} value={selectedPeriod}>
                                     <option value="" className="dp-default-option">Yıl Seçiniz</option>
                                     {periods.map(period => {
                                         return <option key={period.id} value={period.id}>{period.name}</option>
@@ -60,7 +63,7 @@ const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPer
 
                             </div>
                             <div class="form-group">
-                                <select class="form-control" id="field" onChange={onSelectField} value={selectedField}>
+                                <select class="form-control form-control-sm" id="field" onChange={onSelectField} value={selectedField}>
                                     <option value="" className="dp-default-option">Tarla Seçiniz</option>
                                     {fields.map(field => {
                                         return <option key={field.id} value={field.id}>{field.name}</option>
@@ -77,7 +80,7 @@ const Plantings = ({ periods, fields, selectedPeriod, selectedField, onSelectPer
                                             <div class="form-group row">
                                                 <label for={product.name} class="col-sm-1 col-form-label">{product.name}</label>
                                                 <div class="col-sm-10">
-                                                    <input type="email" class="form-control" id={product.name} placeholder="Ekim Yüzdesi" />
+                                                    <input type="number" class="form-control form-control-sm" id={product.name} value={getPercent(Number(product.id))} onChange={(e) => onPercentChange(Number(e.target.value), product.id)} placeholder="Ekim Yüzdesi" />
                                                 </div>
                                             </div>
                                         )
